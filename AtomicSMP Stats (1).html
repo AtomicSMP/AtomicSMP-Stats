@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="google-site-verification" content="JEYQmN21vPY64B9ltHXkn4nAsdriepXd5ySMt7gBiw0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AtomicSMP Stats</title>
+<meta name="description" content="Atomic SMP Stats — player statistics, rankings, and server information.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';s.onload=function(){if(typeof renderChart==='function')renderChart();};document.head.appendChild(s);})()"></script>
+<style>
+  :root{
+    --bg:#000000;
+    --panel:#111111;
+    --panel-2:#161616;
+    --panel-3:#1c1c1c;
+    --line:#2a2a2a;
+    --grass:#6f9c4a;
+    --grass-dim:#4f7238;
+    --torch:#e3a75a;
+    --stone:#96907f;
+    --text:#eee8dc;
+    --text-dim:#9c9587;
+    --danger:#c96a5a;
+    --r-sm:7px;
+    --r-lg:12px;
+    --lift: inset 0 1px 0 rgba(255,255,255,0.045);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Public Sans', system-ui, sans-serif;
+    line-height:1.5;
+  }
+  h1,h2,h3,.wordmark{font-family:'Space Grotesk', system-ui, sans-serif;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px;}
+  :focus-visible{outline:2px solid var(--grass); outline-offset:2px; border-radius:4px;}
+
+  /* header */
+  header{
+    border-bottom:1px solid var(--line);
+    padding:16px 0;
+    position:sticky; top:env(safe-area-inset-top, 0px); z-index:20;
+    background:rgba(0,0,0,0.72);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  }
+  header .wrap{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .wordmark{font-size:20px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:10px;}
+  .wordmark .dot{width:9px;height:9px;border-radius:50%;background:var(--grass);box-shadow:0 0 0 3px rgba(111,156,74,0.18);}
+  .server-meta{display:flex; flex-direction:column; gap:8px; align-items:flex-end;}
+  .server-line{display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text-dim);}
+  .server-line code{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:5px 10px; border-radius:var(--r-sm); font-size:13px; letter-spacing:.02em;
+  }
+  .copy-btn{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text-dim);
+    padding:5px 9px; border-radius:var(--r-sm); cursor:pointer;
+    font-family:inherit; font-size:12px; transition:color .12s ease, border-color .12s ease;
+  }
+  .copy-btn:hover{color:var(--text); border-color:var(--stone);}
+
+  /* strip divider - block motif */
+  .strip{height:6px; display:flex;}
+  .strip span{flex:1;}
+  .strip .g{background:var(--grass-dim);}
+  .strip .d{background:#5a4330;}
+
+  /* hero */
+  .hero{padding:60px 0 44px;}
+  .hero h1{font-size:44px; line-height:1.1; margin:0 0 18px; max-width:640px; font-weight:700; letter-spacing:-.01em;}
+  .hero p{color:var(--text-dim); max-width:520px; margin:0 0 32px; font-size:16.5px;}
+
+  .search-row{display:flex; gap:10px; max-width:460px;}
+  .search-row select{
+    flex:1; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    padding:13px 40px 13px 16px; border-radius:var(--r-sm); font-size:15px; font-family:inherit;
+    appearance:none; -webkit-appearance:none; box-shadow:var(--lift);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='%239c9587'/></svg>");
+    background-repeat:no-repeat; background-position:right 16px center;
+    transition:border-color .12s ease;
+  }
+  .search-row select:hover{border-color:var(--stone);}
+  .search-row select:focus{outline:none; border-color:var(--grass);}
+  .search-row select option{background:var(--panel); color:var(--text);}
+  .search-row button{
+    background:var(--grass); color:#0f1410; border:none; font-weight:600;
+    padding:13px 22px; border-radius:var(--r-sm); cursor:pointer; font-size:15px; font-family:inherit;
+    box-shadow:0 4px 16px rgba(111,156,74,0.22);
+  }
+  .search-row button:hover{background:#7fae57;}
+
+  /* demo banner */
+  .banner{
+    background:var(--panel-2); border:1px solid var(--line); border-left:3px solid var(--torch);
+    padding:12px 16px; border-radius:var(--r-sm); font-size:13.5px; color:var(--text-dim); margin-top:28px;
+    box-shadow:var(--lift);
+  }
+  .banner strong{color:var(--torch); font-weight:600;}
+
+  /* player card */
+  #player-section{display:none; padding:8px 0 48px;}
+  .player-head{display:flex; align-items:center; gap:18px; margin-bottom:28px;}
+  .player-head .avatar-badge{
+    width:64px; height:64px; border-radius:var(--r-lg); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk'; font-size:26px; font-weight:700; color:#fff; flex-shrink:0;
+    box-shadow:var(--lift);
+  }
+  .lb-row .avatar-badge{
+    width:28px;height:28px;border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk'; font-size:12px; font-weight:700; color:#fff; flex-shrink:0;
+  }
+  .player-head h2{margin:0 0 4px; font-size:25px; letter-spacing:-.005em;}
+  .player-head .sub{color:var(--text-dim); font-size:14px;}
+  .close-btn{margin-left:auto; background:var(--panel); border:1px solid var(--line); color:var(--text-dim); border-radius:var(--r-sm); padding:7px 12px; cursor:pointer; font-family:inherit; font-size:13px; transition:color .12s ease, border-color .12s ease;}
+  .close-btn:hover{color:var(--text); border-color:var(--stone);}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--lift);}
+  .stat-cell{background:var(--panel); padding:20px; transition:background .12s ease;}
+  .stat-cell:hover{background:var(--panel-2);}
+  .stat-cell .v{font-family:'Space Grotesk'; font-size:22px; font-weight:700;}
+  .stat-cell .k{font-size:12.5px; color:var(--text-dim); margin-top:5px;}
+  @media (max-width:700px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+
+  /* advancements panel */
+  .adv-panel{margin-top:18px;}
+  .adv-toggle{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel); border:1px solid var(--line); color:var(--text);
+    padding:13px 18px; border-radius:var(--r-lg); cursor:pointer; font-size:14.5px; font-family:inherit;
+    box-shadow:var(--lift); transition:border-color .12s ease, background .12s ease;
+  }
+  .adv-toggle:hover{border-color:var(--stone); background:var(--panel-2);}
+  .adv-chev{color:var(--text-dim); transition:transform .15s ease;}
+  .adv-chev.open{transform:rotate(180deg);}
+  .adv-body{
+    border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg);
+    padding:6px 18px 18px; background:var(--panel);
+  }
+  .adv-cat{margin-top:16px;}
+  .adv-cat:first-child{margin-top:16px;}
+  .adv-cat-title{font-family:'Space Grotesk'; font-size:13px; font-weight:600; color:var(--torch); margin-bottom:8px;}
+  .adv-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:6px 16px;}
+  @media (max-width:600px){.adv-grid{grid-template-columns:1fr;}}
+  .adv-item{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); padding:4px 6px; margin:0 -6px; border-radius:6px; cursor:help; transition:background .1s ease;}
+  .adv-item:hover{background:var(--panel-2);}
+  .adv-item .chk{flex-shrink:0; font-size:15px; line-height:1;}
+  .adv-empty{color:var(--text-dim); font-size:13.5px; padding:16px 0;}
+
+  /* leaderboard */
+  .lb-section{padding:8px 0 72px;}
+  .lb-section h2{font-size:22px; margin:0 0 6px;}
+  .lb-section > .wrap > p{color:var(--text-dim); font-size:14px; margin:0 0 22px;}
+  .tabs{display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap;}
+  .tab{
+    background:var(--panel); border:1px solid var(--line); color:var(--text-dim);
+    padding:8px 14px; border-radius:var(--r-sm); cursor:pointer; font-size:13.5px; font-family:inherit;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .tab:hover{border-color:var(--stone); color:var(--text);}
+  .tab.active{background:var(--grass-dim); border-color:var(--grass-dim); color:#f2f7ec;}
+  .tab.active:hover{border-color:var(--grass-dim);}
+  .lb-list{border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; overflow-x:auto; box-shadow:var(--lift);}
+  .lb-row{
+    display:flex; align-items:center; gap:14px; padding:12px 18px;
+    border-bottom:1px solid var(--line); background:var(--panel); transition:background .1s ease;
+  }
+  .lb-row:last-child{border-bottom:none;}
+  .lb-row:nth-child(even){background:var(--panel-2);}
+  .lb-row:not(.lb-header):hover{background:var(--panel-3);}
+  .lb-rank{width:22px; flex-shrink:0; color:var(--text-dim); font-size:13px; font-family:'Space Grotesk';}
+  .lb-name{flex:1; font-size:14.5px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lb-val{font-family:'Space Grotesk'; font-weight:700; font-size:14.5px; text-align:right; flex-shrink:0;}
+  .lb-extra{font-family:'Space Grotesk'; font-weight:600; font-size:13px; color:var(--text-dim); text-align:right; flex-shrink:0;}
+  .lb-name-spacer{width:28px; flex-shrink:0;}
+  .lb-header{color:var(--text-dim); font-size:11.5px; letter-spacing:.03em;}
+  .lb-header:hover{background:var(--panel);}
+  .lb-header .lb-name, .lb-header .lb-val{color:var(--text-dim); font-weight:600; font-size:11.5px; font-family:'Public Sans', sans-serif;}
+  .lb-row.me{outline:1px solid var(--grass); outline-offset:-1px;}
+
+  /* Multi-column leaderboards (Blocks Mined, Deaths): a grid, not flex, so the
+     header and every row share the exact same column widths regardless of
+     name length or screen size. min-width forces a horizontal scroll instead
+     of squishing/misaligning on narrow phones. */
+  .lb-row.lb-multi{
+    display:grid; grid-template-columns:var(--lb-cols); align-items:center;
+    gap:8px; min-width:400px;
+  }
+  .lb-row.lb-multi .lb-rank,
+  .lb-row.lb-multi .lb-name-spacer{width:auto;}
+  .lb-row.lb-multi .lb-val,
+  .lb-row.lb-multi .lb-extra{white-space:nowrap;}
+  .lb-row.lb-multi.lb-header .lb-val,
+  .lb-row.lb-multi.lb-header .lb-extra{
+    white-space:normal; line-height:1.25; word-break:normal; overflow-wrap:break-word;
+  }
+
+  footer{border-top:1px solid var(--line); padding:22px 0 40px;}
+  footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:13px; color:var(--text-dim);}
+
+  ::selection{background:var(--grass-dim); color:#fff;}
+  button{transition:transform .12s ease;}
+  button:hover{transform:scale(1.045);}
+  button:active{transform:scale(0.97);}
+
+  /* scroll-reveal */
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .5s ease, transform .5s ease;}
+  .reveal.in-view{opacity:1; transform:translateY(0);}
+
+  /* animated toggle panels (advancements / deaths / distance) */
+  .adv-body{
+    border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg);
+    padding:0 18px; background:var(--panel);
+    max-height:0; overflow:hidden; opacity:0;
+    transition:max-height .28s ease, opacity .22s ease, padding .28s ease;
+  }
+  .adv-body.open{padding:6px 18px 18px; opacity:1;}
+
+  /* recent activity feed */
+  .activity-section{padding:48px 0 8px;}
+  .activity-section h2{font-size:22px; margin:0 0 6px;}
+  .activity-section > .wrap > p{color:var(--text-dim); font-size:14px; margin:0 0 20px;}
+  .activity-feed{display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--lift);}
+  .feed-row{
+    display:flex; align-items:center; gap:12px; padding:12px 18px; background:var(--panel);
+    opacity:0; transform:translateX(-8px); animation:feedIn .35s ease forwards;
+    transition:background .1s ease;
+  }
+  .feed-row:hover{background:var(--panel-3);}
+  .feed-row:nth-child(even){background:var(--panel-2);}
+  @keyframes feedIn{to{opacity:1; transform:translateX(0);}}
+  .feed-text{flex:1; font-size:13.5px; min-width:0;}
+  .feed-text b{font-weight:600;}
+  .feed-adv{color:var(--grass); font-weight:700;}
+  .feed-time{color:var(--text-dim); font-size:12px; flex-shrink:0; white-space:nowrap;}
+  .feed-more-btn{
+    margin-top:14px; background:var(--panel); border:1px solid var(--line); color:var(--text-dim);
+    padding:9px 16px; border-radius:var(--r-sm); cursor:pointer; font-size:13.5px; font-family:inherit;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .feed-more-btn:hover{border-color:var(--stone); color:var(--text);}
+
+  /* player comparison */
+  .compare-section{padding:48px 0 8px;}
+  .compare-section h2{font-size:22px; margin:0 0 6px;}
+  .compare-section > .wrap > p{color:var(--text-dim); font-size:14px; margin:0 0 22px;}
+  .compare-pickers{display:flex; align-items:center; gap:14px; max-width:520px; margin-bottom:22px;}
+  .compare-pickers select{
+    flex:1; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    padding:12px 16px; border-radius:var(--r-sm); font-size:14.5px; font-family:inherit;
+    box-shadow:var(--lift); transition:border-color .12s ease;
+  }
+  .compare-pickers select:hover{border-color:var(--stone);}
+  .compare-vs{color:var(--text-dim); font-family:'Space Grotesk'; font-size:13px; flex-shrink:0;}
+  .compare-table{border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--lift);}
+  .compare-head{display:grid; grid-template-columns:1fr 100px 100px; gap:10px; padding:14px 18px; background:var(--panel-2); align-items:center;}
+  .compare-head .ch-name{font-family:'Space Grotesk'; font-weight:700; font-size:15px; text-align:center;}
+  .compare-row{display:grid; grid-template-columns:1fr 100px 100px; gap:10px; padding:11px 18px; background:var(--panel); border-top:1px solid var(--line); align-items:center;
+    opacity:0; transform:translateY(6px); animation:feedIn .3s ease forwards;}
+  .compare-row:nth-child(even){background:var(--panel-2);}
+  .compare-label{font-size:13px; color:var(--text-dim);}
+  .compare-val{font-family:'Space Grotesk'; font-weight:600; font-size:14px; text-align:center;}
+  .compare-val.lead{color:var(--grass); font-weight:700;}
+  .compare-empty{color:var(--text-dim); font-size:14px; padding:20px; text-align:center; border:1px dashed var(--line); border-radius:var(--r-lg);}
+
+  /* stats chart */
+  .chart-section{padding:48px 0 60px;}
+  .chart-section h2{font-size:22px; margin:0 0 6px;}
+  .chart-section > .wrap > p{color:var(--text-dim); font-size:14px; margin:0 0 18px;}
+  #chart-stat{
+    background:var(--panel); border:1px solid var(--line); color:var(--text);
+    padding:10px 14px; border-radius:var(--r-sm); font-size:14px; font-family:inherit;
+    margin-bottom:18px; box-shadow:var(--lift);
+  }
+  .chart-wrap{
+    border:1px solid var(--line); border-radius:var(--r-lg); background:var(--panel);
+    padding:20px; box-shadow:var(--lift); height:360px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="wordmark"><span class="dot"></span><span id="server-name">Loading…</span></div>
+    <div class="server-meta">
+      <div class="server-line">
+        <span>Join at</span>
+        <code id="server-ip">—</code>
+        <button class="copy-btn" onclick="copyIP()">Copy</button>
+      </div>
+      <div class="server-line">
+        <span>Seed</span>
+        <code id="server-seed">—</code>
+        <button class="copy-btn" onclick="copySeed(this)">Copy</button>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="strip"><span class="g"></span><span class="d"></span><span class="g"></span><span class="d"></span><span class="g"></span><span class="d"></span><span class="g"></span></div>
+
+<section class="hero">
+  <div class="wrap">
+    <h1>See how everyone's really doing on AtomicSMP.</h1>
+    <p>Look up a player to see their full stat history, or check where you land on the server leaderboards.</p>
+    <div class="search-row">
+      <select id="search-input" onchange="lookupPlayer()">
+        <option value="">Select a player…</option>
+      </select>
+      <button onclick="lookupPlayer()">Look up</button>
+    </div>
+    <div class="banner" id="demo-banner" style="display:none;">
+      Stats shown here were last updated <strong>Oct 1, 2026</strong>.
+    </div>
+  </div>
+</section>
+
+<section class="activity-section reveal">
+  <div class="wrap">
+    <h2>Recent Activity</h2>
+    <p>Real deaths, advancements, and joins — newest first.</p>
+    <div class="activity-feed" id="activity-feed"></div>
+    <button class="feed-more-btn" id="feed-more-btn" onclick="expandFeed()" style="display:none;">Show more</button>
+  </div>
+</section>
+
+<section id="player-section">
+  <div class="wrap">
+    <div class="player-head">
+      <div class="avatar-badge" id="p-avatar"></div>
+      <div>
+        <h2 id="p-name"></h2>
+        <div class="sub" id="p-sub"></div>
+      </div>
+      <button class="close-btn" onclick="closePlayer()">Close</button>
+    </div>
+    <div class="stat-grid" id="p-stats"></div>
+
+    <div class="adv-panel">
+      <button class="adv-toggle" id="adv-toggle" onclick="toggleAdvancements()">
+        <span id="adv-toggle-label">Show advancements</span>
+        <span class="adv-chev" id="adv-chev">▾</span>
+      </button>
+      <div class="adv-body" id="adv-body"></div>
+    </div>
+
+    <div class="adv-panel">
+      <button class="adv-toggle" id="death-toggle" onclick="toggleDeathCauses()">
+        <span id="death-toggle-label">Show latest deaths</span>
+        <span class="adv-chev" id="death-chev">▾</span>
+      </button>
+      <div class="adv-body" id="death-body"></div>
+    </div>
+
+    <div class="adv-panel">
+      <button class="adv-toggle" id="dist-toggle" onclick="toggleDistance()">
+        <span id="dist-toggle-label">Show distance breakdown</span>
+        <span class="adv-chev" id="dist-chev">▾</span>
+      </button>
+      <div class="adv-body" id="dist-body"></div>
+    </div>
+  </div>
+</section>
+
+<section class="lb-section">
+  <div class="wrap">
+    <h2>Leaderboards</h2>
+    <p>Updated whenever the server writes new stat files.</p>
+    <div class="tabs" id="lb-tabs"></div>
+    <div class="lb-list" id="lb-list"></div>
+  </div>
+</section>
+
+<section class="compare-section reveal">
+  <div class="wrap">
+    <h2>Compare Players</h2>
+    <p>Pick two players to see how they stack up, stat for stat.</p>
+    <div class="compare-pickers">
+      <select id="compare-a" onchange="renderComparison()"><option value="">Player A…</option></select>
+      <span class="compare-vs">vs</span>
+      <select id="compare-b" onchange="renderComparison()"><option value="">Player B…</option></select>
+    </div>
+    <div id="compare-result"></div>
+  </div>
+</section>
+
+<section class="chart-section reveal">
+  <div class="wrap">
+    <h2>Stats at a Glance</h2>
+    <p>Every player, side by side, for one stat at a time.</p>
+    <select id="chart-stat" onchange="renderChart()"></select>
+    <div class="chart-wrap"><canvas id="stats-chart" height="320"></canvas></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span id="footer-ip">Server IP: —</span>
+    <span>Stats refresh roughly every few minutes</span>
+  </div>
+</footer>
+
+<script>
+// ---------------------------------------------------------------
+// CONFIGURE THIS SECTION with your real PowerUpStack API details.
+// If API_BASE is left empty, the page runs on demo data so you can
+// see the layout before wiring up your server.
+// ---------------------------------------------------------------
+const CONFIG = {
+  API_BASE: '',              // e.g. 'https://stats.yourdomain.com/api'
+  API_KEY: '',               // e.g. a Bearer token, if your API requires one
+  SERVER_NAME: 'AtomicSMP0',
+  SERVER_IP: 'atomicsmp0.freeservers.cloud',
+  SERVER_SEED: '4640628086776040280'
+};
+
+const DEMO_MODE = !CONFIG.API_BASE;
+
+const LEADERBOARD_TYPES = [
+  {key:'playtime', label:'Playtime', unit:'h'},
+  {key:'kills', label:'PvP Kills', unit:''},
+  {key:'mined', label:'Blocks Mined', unit:''},
+  {key:'placed', label:'Blocks Placed', unit:''},
+  {key:'distance', label:'Distance Traveled', unit:' km'},
+  {key:'advancements', label:'Advancements', unit:''},
+  {key:'deaths', label:'Deaths', unit:''}
+];
+
+// Extra per-row columns shown only on specific leaderboard tabs, alongside
+// the main sorted value.
+const LEADERBOARD_EXTRA_COLUMNS = {
+  mined: [{key:'diamondMined', label:'Diamond Ore'}, {key:'debrisMined', label:'Ancient Debris'}],
+  deaths: [{key:'totems', label:'Totems Used'}]
+};
+
+// Friendly display names for vanilla advancement IDs, grouped by their
+// in-game tab. Recipe-unlock entries and the four hidden "root" advancements
+// per tab are excluded — those aren't real advancements, just plumbing.
+const ADVANCEMENT_INFO = {
+  'story/mine_stone': {cat:'Story', name:'Stone Age', icon:'⛏️', desc:'Mine stone with your new pickaxe'},
+  'story/upgrade_tools': {cat:'Story', name:'Getting an Upgrade', icon:'🪓', desc:'Construct a better pickaxe'},
+  'story/smelt_iron': {cat:'Story', name:'Acquire Hardware', icon:'🔩', desc:'Smelt an iron ingot'},
+  'story/obtain_armor': {cat:'Story', name:'Suit Up', icon:'🛡️', desc:'Protect yourself with a piece of iron armor'},
+  'story/lava_bucket': {cat:'Story', name:'Hot Stuff', icon:'🪣', desc:'Fill a bucket with lava'},
+  'story/iron_tools': {cat:'Story', name:"Isn't It Iron Pick", icon:'⛏️', desc:'Upgrade your pickaxe'},
+  'story/deflect_arrow': {cat:'Story', name:'Not Today, Thank You', icon:'🏹', desc:'Deflect a projectile with a shield'},
+  'story/form_obsidian': {cat:'Story', name:'Ice Bucket Challenge', icon:'🧊', desc:'Obtain a block of obsidian'},
+  'story/enter_the_nether': {cat:'Story', name:'We Need to Go Deeper', icon:'🌋', desc:'Build, light and enter a Nether Portal'},
+  'story/shiny_gear': {cat:'Story', name:'Cover Me with Diamonds', icon:'💎', desc:'Diamond armor saves lives'},
+  'story/enchant_item': {cat:'Story', name:'Enchanter', icon:'📖', desc:'Enchant an item at an Enchanting Table'},
+  'story/mine_diamond': {cat:'Story', name:'Diamonds!', icon:'💎', desc:'Acquire diamonds'},
+  'story/follow_ender_eye': {cat:'Story', name:'Eye Spy', icon:'👁️', desc:'Follow an Eye of Ender'},
+  'story/enter_the_end': {cat:'Story', name:'The End?', icon:'🌀', desc:'Enter the End Portal'},
+
+  'nether/fast_travel': {cat:'Nether', name:'Subspace Bubble', icon:'🌀', desc:'Use the Nether to travel 7 km in the Overworld'},
+  'nether/find_fortress': {cat:'Nether', name:'A Terrible Fortress', icon:'🏰', desc:'Break your way into a Nether Fortress'},
+  'nether/obtain_blaze_rod': {cat:'Nether', name:'Into Fire', icon:'🔥', desc:'Relieve a Blaze of its rod'},
+  'nether/distract_piglin': {cat:'Nether', name:'Oh Shiny', icon:'✨', desc:'Distract Piglins with gold'},
+  'nether/return_to_sender': {cat:'Nether', name:'Return to Sender', icon:'🔥', desc:'Destroy a Ghast with a fireball'},
+  'nether/obtain_ancient_debris': {cat:'Nether', name:'Hidden in the Depths', icon:'⚙️', desc:'Obtain Ancient Debris'},
+  'nether/obtain_crying_obsidian': {cat:'Nether', name:'Who is Cutting Onions?', icon:'💜', desc:'Obtain Crying Obsidian'},
+  'nether/netherite_armor': {cat:'Nether', name:'Cover Me in Debris', icon:'🛡️', desc:'Get a full suit of Netherite armor'},
+  'nether/explore_nether': {cat:'Nether', name:'Hot Tourist Destinations', icon:'🗺️', desc:'Explore all Nether biomes'},
+  'nether/find_bastion': {cat:'Nether', name:'Those Were the Days', icon:'🏛️', desc:'Enter a Bastion Remnant'},
+  'nether/loot_bastion': {cat:'Nether', name:'War Pigs', icon:'🐗', desc:'Loot a chest in a Bastion Remnant'},
+  'nether/brew_potion': {cat:'Nether', name:'Local Brewery', icon:'🧪', desc:'Brew a potion'},
+
+  'end/kill_dragon': {cat:'The End', name:'Free the End', icon:'🐉', desc:'Good luck'},
+  'end/dragon_egg': {cat:'The End', name:'The Next Generation', icon:'🥚', desc:'Hold the Dragon Egg'},
+  'end/enter_end_gateway': {cat:'The End', name:'Remote Getaway', icon:'🌀', desc:'Escape the island'},
+  'end/find_end_city': {cat:'The End', name:'The City at the End of the Game', icon:'🏙️', desc:'Go on in, what could happen?'},
+  'end/elytra': {cat:'The End', name:"Sky's the Limit", icon:'🪽', desc:'Find elytra'},
+  'end/levitate': {cat:'The End', name:'Great View From Up Here', icon:'☁️', desc:'Levitate up 50 blocks from the attacks of a Shulker'},
+
+  'adventure/voluntary_exile': {cat:'Adventure', name:'Voluntary Exile', icon:'🏴', desc:'Kill a raid captain. Maybe consider staying away from villages for the time being...'},
+  'adventure/kill_a_mob': {cat:'Adventure', name:'Monster Hunter', icon:'⚔️', desc:'Kill any hostile monster'},
+  'adventure/trade': {cat:'Adventure', name:'What a Deal!', icon:'💰', desc:'Successfully trade with a Villager'},
+  'adventure/ol_betsy': {cat:'Adventure', name:"Ol' Betsy", icon:'💥', desc:'Shoot a crossbow'},
+  'adventure/sleep_in_bed': {cat:'Adventure', name:'Sweet Dreams', icon:'🛏️', desc:'Sleep in a bed to change your respawn point'},
+  'adventure/hero_of_the_village': {cat:'Adventure', name:'Hero of the Village', icon:'🎖️', desc:'Successfully defend a village from a raid'},
+  'adventure/shoot_arrow': {cat:'Adventure', name:'Take Aim', icon:'🏹', desc:'Shoot something with an arrow'},
+  'adventure/totem_of_undying': {cat:'Adventure', name:'Postmortal', icon:'🪅', desc:'Use a Totem of Undying to cheat death'},
+  'adventure/whos_the_pillager_now': {cat:'Adventure', name:"Who's the Pillager Now?", icon:'🏹', desc:'Give a Pillager a taste of their own medicine'},
+  'adventure/trim_with_any_armor_pattern': {cat:'Adventure', name:'Crafting a New Look', icon:'🎨', desc:'Craft a trimmed armor at a Smithing Table'},
+  'adventure/under_lock_and_key': {cat:'Adventure', name:'Under Lock and Key', icon:'🔑', desc:'Open a Vault using a Trial Key'},
+  'adventure/who_needs_rockets': {cat:'Adventure', name:'Who Needs Rockets?', icon:'💨', desc:'Boost off of a Wind Charge and travel horizontally at least 8 blocks'},
+  'adventure/minecraft_trials_edition': {cat:'Adventure', name:'Minecraft: Trial(s) Edition', icon:'⚔️', desc:'Step foot in a Trial Chamber'},
+  'adventure/blowback': {cat:'Adventure', name:'Blowback', icon:'💨', desc:'Kill a Breeze with a deflected Wind Charge'},
+  'adventure/revaulting': {cat:'Adventure', name:'Revaulting', icon:'🔓', desc:'Unlock an Ominous Vault using an Ominous Trial Key'},
+
+  'husbandry/breed_an_animal': {cat:'Husbandry', name:'The Parrots and the Bats', icon:'🐇', desc:'Breed two animals together'},
+  'husbandry/tame_an_animal': {cat:'Husbandry', name:'Best Friends Forever', icon:'🐺', desc:'Tame an animal'},
+  'husbandry/plant_seed': {cat:'Husbandry', name:'A Seedy Place', icon:'🌱', desc:'Plant a seed and watch it grow'},
+  'husbandry/tactical_fishing': {cat:'Husbandry', name:'Tactical Fishing', icon:'🎣', desc:'Catch a fish… without a fishing rod!'},
+  'husbandry/axolotl_in_a_bucket': {cat:'Husbandry', name:'The Cutest Predator', icon:'🪣', desc:'Catch a fish… with a bucket!'},
+  'husbandry/wax_off': {cat:'Husbandry', name:'Wax Off', icon:'🕯️', desc:'Scrape wax off of a Copper block'},
+  'husbandry/obtain_netherite_hoe': {cat:'Husbandry', name:'Serious Dedication', icon:'🌾', desc:'Use a Netherite ingot to upgrade a hoe, and then reevaluate your life choices'},
+  'husbandry/place_dried_ghast_in_water': {cat:'Husbandry', name:'Place Dried Ghast In Water', icon:'👻', desc:'Submerge a Dried Ghast block in water'}
+};
+function advancementLabel(id){
+  return ADVANCEMENT_INFO[id]?.name || id.split('/').pop().replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
+}
+function advancementCategory(id){
+  return ADVANCEMENT_INFO[id]?.cat || 'Other';
+}
+function advancementIcon(id){
+  return ADVANCEMENT_INFO[id]?.icon || '❔';
+}
+function advancementDesc(id){
+  return ADVANCEMENT_INFO[id]?.desc || '';
+}
+
+// Friendly names/icons for what killed a player. Vanilla stats only record
+// this for deaths caused by a mob or another player — deaths from fall
+// damage, lava, drowning, the void, starvation etc. aren't broken down by
+// cause, so those are lumped into a single "Other causes" line below.
+const DEATH_CAUSE_INFO = {
+  'minecraft:player': {name:'Another player', icon:'⚔️'},
+  'minecraft:zombie': {name:'Zombie', icon:'🧟'},
+  'minecraft:skeleton': {name:'Skeleton', icon:'💀'},
+  'minecraft:creeper': {name:'Creeper', icon:'💥'},
+  'minecraft:spider': {name:'Spider', icon:'🕷️'},
+  'minecraft:enderman': {name:'Enderman', icon:'👁️'},
+  'minecraft:witch': {name:'Witch', icon:'🧙'},
+  'minecraft:iron_golem': {name:'Iron Golem', icon:'🤖'},
+  'minecraft:drowned': {name:'Drowned', icon:'🌊'},
+  'minecraft:piglin': {name:'Piglin', icon:'🐷'},
+  'minecraft:piglin_brute': {name:'Piglin Brute', icon:'🪓'},
+  'minecraft:zombified_piglin': {name:'Zombified Piglin', icon:'🔥'},
+  'minecraft:hoglin': {name:'Hoglin', icon:'🐗'},
+  'minecraft:ender_dragon': {name:'The Ender Dragon', icon:'🐉'},
+  'minecraft:wither': {name:'The Wither', icon:'☠️'},
+  'minecraft:blaze': {name:'Blaze', icon:'🔥'},
+  'minecraft:phantom': {name:'Phantom', icon:'🦇'},
+  'minecraft:magma_cube': {name:'Magma Cube', icon:'🟧'}
+};
+function deathCauseLabel(id){
+  return DEATH_CAUSE_INFO[id]?.name || id.replace('minecraft:','').replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
+}
+function deathCauseIcon(id){
+  return DEATH_CAUSE_INFO[id]?.icon || '💢';
+}
+
+// Labels/icons for the distance-traveled breakdown. These map directly to
+// vanilla's separate *_one_cm stats — each movement type is tracked
+// independently by the game, so this is a real breakdown, not an estimate.
+const MOVEMENT_INFO = {
+  walk: {name:'Walking', icon:'🚶'},
+  sprint: {name:'Sprinting', icon:'🏃'},
+  crouch: {name:'Crouching', icon:'🧎'},
+  fall: {name:'Falling', icon:'🪂'},
+  aviate: {name:'Gliding (Elytra)', icon:'🪽'},
+  boat: {name:'By boat', icon:'🚤'},
+  swim: {name:'Swimming', icon:'🏊'},
+  walk_on_water: {name:'Walking on water', icon:'🌊'},
+  walk_under_water: {name:'Walking underwater', icon:'🤿'},
+  horse: {name:'By horse', icon:'🐴'},
+  climb: {name:'Climbing', icon:'🧗'}
+};
+
+// Real stats pulled from AtomicSMP0's world/players/stats + usercache.json,
+// exported on Sep 27 2026. This is a frozen snapshot, not live data — see
+// the banner below for what it takes to make this update automatically.
+const SNAPSHOT_DATE = 'Sep 27, 2026';
+// Combined feed of real deaths, advancement completions, and joins,
+// newest first, drawn straight from the server logs and stat files.
+const ACTIVITY_FEED = [
+  {t:'2026-10-01T10:13:52Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-10-01T10:10:58Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-10-01T10:08:18Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-10-01T09:42:11Z',name:'avanish',type:'death',detail:'was slain by Zombie'},
+  {t:'2026-10-01T09:42:06Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-30T13:55:03Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-30T10:01:30Z',name:'avanish',type:'death',detail:'tried to swim in lava'},
+  {t:'2026-09-30T09:58:55Z',name:'avanish',type:'advancement',detail:'nether/loot_bastion'},
+  {t:'2026-09-30T09:54:58Z',name:'avanish',type:'death',detail:'was slain by Piglin'},
+  {t:'2026-09-30T09:53:51Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-30T01:29:35Z',name:'ChickenMC_yt',type:'death',detail:'was slain by Spider'},
+  {t:'2026-09-30T01:28:12Z',name:'ChickenMC_yt',type:'death',detail:'was blown up by Creeper'},
+  {t:'2026-09-30T01:23:54Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-30T01:20:17Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-30T01:18:16Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-29T18:42:33Z',name:'ChickenMC_yt',type:'death',detail:'was shot by Skeleton'},
+  {t:'2026-09-29T18:42:20Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-29T18:38:25Z',name:'ChickenMC_yt',type:'death',detail:'drowned'},
+  {t:'2026-09-29T18:36:37Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-29T18:31:11Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-29T18:27:22Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-29T13:11:21Z',name:'avanish',type:'death',detail:'tried to swim in lava'},
+  {t:'2026-09-29T13:01:52Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-29T13:01:45Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-29T10:10:28Z',name:'avanish',type:'advancement',detail:'nether/find_bastion'},
+  {t:'2026-09-29T10:02:56Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-29T09:16:12Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-28T17:26:24Z',name:'GoatVV',type:'death',detail:'was blown up by Creeper'},
+  {t:'2026-09-28T17:11:55Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-28T16:23:29Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-28T16:09:17Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-28T14:28:11Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-28T10:01:28Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-28T09:40:55Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-28T09:15:27Z',name:'avanish',type:'death',detail:'was slain by Iron Golem'},
+  {t:'2026-09-28T09:14:32Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-27T13:51:14Z',name:'avanish',type:'death',detail:'fell from a high place'},
+  {t:'2026-09-27T13:37:43Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-27T11:51:27Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-27T11:43:27Z',name:'ChickenMC_yt',type:'death',detail:'was slain by Magma Cube'},
+  {t:'2026-09-27T11:43:22Z',name:'ChickenMC_yt',type:'advancement',detail:'nether/loot_bastion'},
+  {t:'2026-09-27T11:39:31Z',name:'ChickenMC_yt',type:'death',detail:'was slain by Magma Cube'},
+  {t:'2026-09-27T11:36:26Z',name:'ChickenMC_yt',type:'death',detail:'tried to swim in lava to escape Magma Cube'},
+  {t:'2026-09-27T11:31:14Z',name:'ChickenMC_yt',type:'death',detail:'was slain by Piglin Brute'},
+  {t:'2026-09-27T11:18:18Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-27T08:49:36Z',name:'avanish',type:'death',detail:'was slain by Zombie'},
+  {t:'2026-09-27T08:36:46Z',name:'avanish',type:'death',detail:'drowned'},
+  {t:'2026-09-27T08:31:21Z',name:'avanish',type:'death',detail:'fell from a high place'},
+  {t:'2026-09-27T07:09:36Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-27T05:29:36Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-27T04:44:26Z',name:'avanish',type:'death',detail:'tried to swim in lava'},
+  {t:'2026-09-27T04:40:29Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-27T04:16:05Z',name:'avanish',type:'death',detail:'was slain by Piglin'},
+  {t:'2026-09-27T04:06:35Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-26T15:05:35Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-26T14:56:11Z',name:'ChickenMC_yt',type:'advancement',detail:'husbandry/tactical_fishing'},
+  {t:'2026-09-26T14:55:15Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-26T13:10:35Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-26T06:17:06Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-26T04:49:12Z',name:'avanish',type:'death',detail:'was slain by Piglin'},
+  {t:'2026-09-26T04:43:00Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-26T04:27:52Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-25T10:41:15Z',name:'GoatVV',type:'death',detail:'hit the ground too hard'},
+  {t:'2026-09-25T10:07:10Z',name:'GoatVV',type:'death',detail:'drowned while trying to escape Skeleton'},
+  {t:'2026-09-25T10:04:21Z',name:'GoatVV',type:'death',detail:'suffocated in a wall'},
+  {t:'2026-09-25T10:04:08Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-25T10:03:55Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-25T09:40:15Z',name:'avanish',type:'death',detail:'was slain by Zombified Piglin'},
+  {t:'2026-09-25T09:33:15Z',name:'avanish',type:'advancement',detail:'nether/obtain_blaze_rod'},
+  {t:'2026-09-25T09:30:24Z',name:'avanish',type:'advancement',detail:'story/deflect_arrow'},
+  {t:'2026-09-25T09:26:30Z',name:'avanish',type:'advancement',detail:'nether/find_fortress'},
+  {t:'2026-09-25T09:09:07Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-24T13:48:30Z',name:'avanish',type:'death',detail:'was doomed to fall by Iron Golem'},
+  {t:'2026-09-24T13:21:32Z',name:'avanish',type:'death',detail:'was slain by Iron Golem'},
+  {t:'2026-09-24T13:10:46Z',name:'avanish',type:'death',detail:'was slain by Iron Golem'},
+  {t:'2026-09-24T10:25:50Z',name:'avanish',type:'death',detail:'was slain by Enderman'},
+  {t:'2026-09-24T09:52:36Z',name:'GoatVV',type:'advancement',detail:'adventure/shoot_arrow'},
+  {t:'2026-09-24T09:45:07Z',name:'GoatVV',type:'advancement',detail:'story/shiny_gear'},
+  {t:'2026-09-24T09:42:31Z',name:'GoatVV',type:'advancement',detail:'story/smelt_iron'},
+  {t:'2026-09-24T09:41:50Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-24T09:31:43Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-24T09:27:11Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-24T09:07:28Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-24T01:49:48Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T15:28:19Z',name:'avanish',type:'advancement',detail:'adventure/voluntary_exile'},
+  {t:'2026-09-23T14:58:27Z',name:'avanish',type:'advancement',detail:'story/enchant_item'},
+  {t:'2026-09-23T14:45:46Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T13:47:20Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T10:23:35Z',name:'GoatVV',type:'advancement',detail:'adventure/trade'},
+  {t:'2026-09-23T10:21:26Z',name:'GoatVV',type:'advancement',detail:'adventure/sleep_in_bed'},
+  {t:'2026-09-23T09:58:24Z',name:'GoatVV',type:'advancement',detail:'story/enter_the_nether'},
+  {t:'2026-09-23T09:47:17Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-23T09:46:15Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:43:36Z',name:'avanish',type:'advancement',detail:'story/enter_the_nether'},
+  {t:'2026-09-23T09:22:58Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:15:50Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:07:58Z',name:'avanish',type:'death',detail:'was slain by Zombie'},
+  {t:'2026-09-23T09:07:41Z',name:'avanish',type:'death',detail:'was slain by Zombie'},
+  {t:'2026-09-23T09:07:17Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:06:46Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:06:20Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:04:30Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T09:02:49Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-23T01:40:41Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-22T13:44:45Z',name:'avanish',type:'death',detail:'was shot by Skeleton'},
+  {t:'2026-09-22T13:42:19Z',name:'avanish',type:'death',detail:'fell from a high place'},
+  {t:'2026-09-22T13:41:54Z',name:'avanish',type:'death',detail:'was doomed to fall by Skeleton'},
+  {t:'2026-09-22T13:39:27Z',name:'avanish',type:'death',detail:'was blown up by Creeper'},
+  {t:'2026-09-22T13:34:19Z',name:'avanish',type:'advancement',detail:'adventure/shoot_arrow'},
+  {t:'2026-09-22T13:21:44Z',name:'avanish',type:'advancement',detail:'story/form_obsidian'},
+  {t:'2026-09-22T13:07:02Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-22T10:15:30Z',name:'avanish',type:'advancement',detail:'story/mine_diamond'},
+  {t:'2026-09-22T10:10:10Z',name:'GoatVV',type:'advancement',detail:'story/iron_tools'},
+  {t:'2026-09-22T10:10:06Z',name:'GoatVV',type:'advancement',detail:'story/obtain_armor'},
+  {t:'2026-09-22T09:55:45Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-22T09:48:44Z',name:'GoatVV',type:'join',detail:''},
+  {t:'2026-09-22T09:40:44Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-22T09:15:42Z',name:'ChickenMC_yt',type:'death',detail:'blew up'},
+  {t:'2026-09-22T09:15:15Z',name:'ChickenMC_yt',type:'join',detail:''},
+  {t:'2026-09-22T01:47:58Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-21T13:19:32Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-21T10:01:19Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-21T01:46:09Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-21T01:44:30Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-20T12:59:12Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-20T12:58:07Z',name:'avanish',type:'join',detail:''},
+  {t:'2026-09-20T09:13:39Z',name:'avanish',type:'advancement',detail:'story/shiny_gear'}
+];
+
+const DEMO_PLAYERS = {
+  'mrbombastic2205': {name:'MrBombastic2205', playtime:40.6, kills:108, deaths:20, mobKills:14517, mined:33950, crafted:16311, distance:444.28, advancements:40,
+    placed:13173, diamondMined:405, debrisMined:62, totems:1, distances:{walk:51.38,sprint:50.2,crouch:8.73,fall:14.65,aviate:289.74,boat:11.35,swim:11.92,walk_on_water:3.23,walk_under_water:2.7,horse:0.0,climb:0.38},
+    earned:['adventure/hero_of_the_village','adventure/kill_a_mob','adventure/ol_betsy','adventure/shoot_arrow','adventure/sleep_in_bed','adventure/totem_of_undying','adventure/trade','adventure/voluntary_exile','end/dragon_egg','end/elytra','end/enter_end_gateway','end/find_end_city','husbandry/axolotl_in_a_bucket','husbandry/obtain_netherite_hoe','husbandry/plant_seed','nether/brew_potion','nether/explore_nether','nether/fast_travel','nether/find_bastion','nether/find_fortress','nether/loot_bastion','nether/netherite_armor','nether/obtain_ancient_debris','nether/obtain_blaze_rod','nether/obtain_crying_obsidian','nether/return_to_sender','story/deflect_arrow','story/enchant_item','story/enter_the_end','story/enter_the_nether','story/follow_ender_eye','story/form_obsidian','story/iron_tools','story/lava_bucket','story/mine_diamond','story/mine_stone','story/obtain_armor','story/shiny_gear','story/smelt_iron','story/upgrade_tools'],
+    lastOnline:{t:'2026-09-20T06:14:19Z',kind:'joined'},
+    deathLog:[]},
+  'chickenmc_yt': {name:'ChickenMC_yt', playtime:39.0, kills:1, deaths:69, mobKills:2784, mined:23659, crafted:27519, distance:216.41, advancements:46,
+    placed:13675, diamondMined:168, debrisMined:22, totems:1, distances:{walk:39.8,sprint:92.65,crouch:3.77,fall:12.02,aviate:25.39,boat:23.66,swim:12.66,walk_on_water:2.51,walk_under_water:1.86,horse:1.72,climb:0.37},
+    earned:['adventure/blowback','adventure/hero_of_the_village','adventure/kill_a_mob','adventure/minecraft_trials_edition','adventure/ol_betsy','adventure/shoot_arrow','adventure/sleep_in_bed','adventure/totem_of_undying','adventure/trade','adventure/under_lock_and_key','adventure/voluntary_exile','end/elytra','end/enter_end_gateway','end/find_end_city','end/levitate','husbandry/breed_an_animal','husbandry/place_dried_ghast_in_water','husbandry/plant_seed','husbandry/tactical_fishing','husbandry/tame_an_animal','husbandry/wax_off','nether/brew_potion','nether/distract_piglin','nether/explore_nether','nether/fast_travel','nether/find_bastion','nether/find_fortress','nether/loot_bastion','nether/obtain_ancient_debris','nether/obtain_blaze_rod','nether/obtain_crying_obsidian','nether/return_to_sender','story/deflect_arrow','story/enchant_item','story/enter_the_end','story/enter_the_nether','story/follow_ender_eye','story/form_obsidian','story/iron_tools','story/lava_bucket','story/mine_diamond','story/mine_stone','story/obtain_armor','story/shiny_gear','story/smelt_iron','story/upgrade_tools'],
+    lastOnline:{t:'2026-09-30T01:33:39Z',kind:'left'},
+    deathLog:[{"t":"2026-09-30T01:29:35Z","msg":"was slain by Spider"},{"t":"2026-09-30T01:28:12Z","msg":"was blown up by Creeper"},{"t":"2026-09-29T18:42:33Z","msg":"was shot by Skeleton"},{"t":"2026-09-29T18:38:25Z","msg":"drowned"},{"t":"2026-09-27T11:43:27Z","msg":"was slain by Magma Cube"},{"t":"2026-09-27T11:39:31Z","msg":"was slain by Magma Cube"},{"t":"2026-09-27T11:36:26Z","msg":"tried to swim in lava to escape Magma Cube"},{"t":"2026-09-27T11:31:14Z","msg":"was slain by Piglin Brute"},{"t":"2026-09-22T09:15:42Z","msg":"blew up"}]},
+  'avanish': {name:'avanish', playtime:35.9, kills:0, deaths:101, mobKills:425, mined:19884, crafted:58459, distance:162.57, advancements:24,
+    placed:9937, diamondMined:39, debrisMined:0, totems:0, distances:{walk:57.62,sprint:68.66,crouch:2.69,fall:7.78,aviate:0.0,boat:17.81,swim:3.28,walk_on_water:2.39,walk_under_water:1.78,horse:0.0,climb:0.56},
+    earned:['adventure/kill_a_mob','adventure/shoot_arrow','adventure/sleep_in_bed','adventure/trade','adventure/voluntary_exile','husbandry/breed_an_animal','husbandry/plant_seed','nether/find_bastion','nether/find_fortress','nether/loot_bastion','nether/obtain_blaze_rod','story/deflect_arrow','story/enchant_item','story/enter_the_nether','story/follow_ender_eye','story/form_obsidian','story/iron_tools','story/lava_bucket','story/mine_diamond','story/mine_stone','story/obtain_armor','story/shiny_gear','story/smelt_iron','story/upgrade_tools'],
+    lastOnline:{t:'2026-10-01T10:24:00Z',kind:'left'},
+    deathLog:[{"t":"2026-10-01T09:42:11Z","msg":"was slain by Zombie"},{"t":"2026-09-30T10:01:30Z","msg":"tried to swim in lava"},{"t":"2026-09-30T09:54:58Z","msg":"was slain by Piglin"},{"t":"2026-09-29T13:11:21Z","msg":"tried to swim in lava"},{"t":"2026-09-28T09:15:27Z","msg":"was slain by Iron Golem"},{"t":"2026-09-27T13:51:14Z","msg":"fell from a high place"},{"t":"2026-09-27T08:49:36Z","msg":"was slain by Zombie"},{"t":"2026-09-27T08:36:46Z","msg":"drowned"},{"t":"2026-09-27T08:31:21Z","msg":"fell from a high place"},{"t":"2026-09-27T04:44:26Z","msg":"tried to swim in lava"},{"t":"2026-09-27T04:16:05Z","msg":"was slain by Piglin"},{"t":"2026-09-26T04:49:12Z","msg":"was slain by Piglin"},{"t":"2026-09-25T09:40:15Z","msg":"was slain by Zombified Piglin"},{"t":"2026-09-24T13:48:30Z","msg":"was doomed to fall by Iron Golem"},{"t":"2026-09-24T13:21:32Z","msg":"was slain by Iron Golem"},{"t":"2026-09-24T13:10:46Z","msg":"was slain by Iron Golem"},{"t":"2026-09-24T10:25:50Z","msg":"was slain by Enderman"},{"t":"2026-09-23T09:07:58Z","msg":"was slain by Zombie"},{"t":"2026-09-23T09:07:41Z","msg":"was slain by Zombie"},{"t":"2026-09-22T13:44:45Z","msg":"was shot by Skeleton"},{"t":"2026-09-22T13:42:19Z","msg":"fell from a high place"},{"t":"2026-09-22T13:41:54Z","msg":"was doomed to fall by Skeleton"},{"t":"2026-09-22T13:39:27Z","msg":"was blown up by Creeper"}]},
+  'happiegamei': {name:'HappieGamei', playtime:11.4, kills:0, deaths:3, mobKills:526, mined:9829, crafted:5809, distance:65.82, advancements:37,
+    placed:6388, diamondMined:148, debrisMined:46, totems:0, distances:{walk:17.96,sprint:17.55,crouch:1.63,fall:5.96,aviate:3.75,boat:14.68,swim:2.5,walk_on_water:0.99,walk_under_water:0.74,horse:0.0,climb:0.06},
+    earned:['adventure/blowback','adventure/kill_a_mob','adventure/minecraft_trials_edition','adventure/revaulting','adventure/shoot_arrow','adventure/sleep_in_bed','adventure/trade','adventure/under_lock_and_key','adventure/voluntary_exile','adventure/who_needs_rockets','end/dragon_egg','end/elytra','end/enter_end_gateway','end/find_end_city','husbandry/tame_an_animal','nether/brew_potion','nether/find_bastion','nether/find_fortress','nether/loot_bastion','nether/netherite_armor','nether/obtain_ancient_debris','nether/obtain_blaze_rod','nether/return_to_sender','story/deflect_arrow','story/enchant_item','story/enter_the_end','story/enter_the_nether','story/follow_ender_eye','story/form_obsidian','story/iron_tools','story/lava_bucket','story/mine_diamond','story/mine_stone','story/obtain_armor','story/shiny_gear','story/smelt_iron','story/upgrade_tools'],
+    lastOnline:{t:'2026-09-14T05:50:05Z',kind:'joined'},
+    deathLog:[]},
+  'therealaccurate': {name:'TheRealAccurate', playtime:9.9, kills:0, deaths:39, mobKills:304, mined:3248, crafted:1074, distance:58.24, advancements:32,
+    placed:1741, diamondMined:43, debrisMined:0, totems:0, distances:{walk:15.04,sprint:21.89,crouch:0.2,fall:5.41,aviate:0.0,boat:10.27,swim:2.68,walk_on_water:1.37,walk_under_water:1.2,horse:0.0,climb:0.18},
+    earned:['adventure/hero_of_the_village','adventure/kill_a_mob','adventure/minecraft_trials_edition','adventure/ol_betsy','adventure/shoot_arrow','adventure/sleep_in_bed','adventure/trim_with_any_armor_pattern','adventure/under_lock_and_key','adventure/voluntary_exile','adventure/who_needs_rockets','adventure/whos_the_pillager_now','end/elytra','end/enter_end_gateway','end/find_end_city','end/kill_dragon','husbandry/tactical_fishing','husbandry/tame_an_animal','nether/find_fortress','story/deflect_arrow','story/enchant_item','story/enter_the_end','story/enter_the_nether','story/follow_ender_eye','story/form_obsidian','story/iron_tools','story/lava_bucket','story/mine_diamond','story/mine_stone','story/obtain_armor','story/shiny_gear','story/smelt_iron','story/upgrade_tools'],
+    lastOnline:{t:'2026-09-05T04:58:35Z',kind:'joined'},
+    deathLog:[]},
+  'goatvv': {name:'GoatVV', playtime:3.5, kills:0, deaths:6, mobKills:13, mined:1134, crafted:222, distance:14.3, advancements:10,
+    placed:233, diamondMined:0, debrisMined:0, totems:0, distances:{walk:10.03,sprint:0.14,crouch:0.03,fall:0.4,aviate:0.0,boat:2.74,swim:0.01,walk_on_water:0.78,walk_under_water:0.17,horse:0.0,climb:0.0},
+    earned:['adventure/shoot_arrow','adventure/sleep_in_bed','adventure/trade','story/enter_the_nether','story/iron_tools','story/mine_stone','story/obtain_armor','story/shiny_gear','story/smelt_iron','story/upgrade_tools'],
+    lastOnline:{t:'2026-09-28T17:26:35Z',kind:'left'},
+    deathLog:[{"t":"2026-09-28T17:26:24Z","msg":"was blown up by Creeper"},{"t":"2026-09-25T10:41:15Z","msg":"hit the ground too hard"},{"t":"2026-09-25T10:07:10Z","msg":"drowned while trying to escape Skeleton"},{"t":"2026-09-25T10:04:21Z","msg":"suffocated in a wall"}]},
+  'pathumc_14': {name:'PathuMC_14', playtime:0.1, kills:0, deaths:1, mobKills:0, mined:10, crafted:0, distance:0.42, advancements:0,
+    placed:1, diamondMined:0, debrisMined:0, totems:0, distances:{walk:0.1,sprint:0.28,crouch:0.0,fall:0.04,aviate:0.0,boat:0.0,swim:0.0,walk_on_water:0.0,walk_under_water:0.0,horse:0.0,climb:0.0},
+    earned:[],
+    lastOnline:{t:'2026-09-19T06:03:42Z',kind:'joined'},
+    deathLog:[]}
+};
+
+function apiHeaders(){
+  const h = {};
+  if (CONFIG.API_KEY) h['Authorization'] = 'Bearer ' + CONFIG.API_KEY;
+  return h;
+}
+
+async function fetchPlayer(name){
+  if (DEMO_MODE){
+    const rec = DEMO_PLAYERS[name.toLowerCase()];
+    return rec ? {...rec, uuid: name.toLowerCase()} : null;
+  }
+  try{
+    const res = await fetch(`${CONFIG.API_BASE}/player/${encodeURIComponent(name)}`, {headers: apiHeaders()});
+    if (!res.ok) return null;
+    return await res.json();
+  }catch(e){
+    console.error('Player fetch failed', e);
+    return null;
+  }
+}
+
+async function fetchLeaderboard(type){
+  if (DEMO_MODE){
+    const valueFor = {playtime:'playtime', kills:'kills', mined:'mined', placed:'placed', distance:'distance', advancements:'advancements', deaths:'deaths'};
+    const extraCols = LEADERBOARD_EXTRA_COLUMNS[type] || [];
+    const arr = Object.values(DEMO_PLAYERS).map(p => ({
+      name: p.name,
+      value: p[valueFor[type]],
+      extra: extraCols.map(c => ({label: c.label, value: p[c.key] ?? 0}))
+    }));
+    arr.sort((a,b)=> b.value - a.value);
+    return arr.slice(0,10);
+  }
+  try{
+    const res = await fetch(`${CONFIG.API_BASE}/leaderboard/${type}?limit=10`, {headers: apiHeaders()});
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.entries || data;
+  }catch(e){
+    console.error('Leaderboard fetch failed', e);
+    return [];
+  }
+}
+
+const AVATAR_COLORS = ['#6f9c4a','#c96a5a','#e3a75a','#5a7fae','#9c6fa8','#4f9c8a','#ae5a8f'];
+function avatarColor(name){
+  let hash = 0;
+  for (let i=0;i<name.length;i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+function avatarBadgeHTML(name, size){
+  const cls = size === 'sm' ? 'avatar-badge' : 'avatar-badge';
+  const initial = (name || '?').charAt(0).toUpperCase();
+  return `<div class="${cls}" style="background:${avatarColor(name)}">${initial}</div>`;
+}
+function setAvatar(name){
+  const el = document.getElementById('p-avatar');
+  el.textContent = (name || '?').charAt(0).toUpperCase();
+  el.style.background = avatarColor(name);
+}
+
+function fmtNumber(n){ return n.toLocaleString(); }
+function fmtHours(h){ return `${fmtNumber(h)}h`; }
+function fmtDistance(km){ return `${fmtNumber(Math.round(km))} km`; }
+
+async function fetchPlayerList(){
+  if (DEMO_MODE){
+    return Object.values(DEMO_PLAYERS)
+      .map(p => p.name)
+      .sort((a,b)=> a.localeCompare(b));
+  }
+  try{
+    const res = await fetch(`${CONFIG.API_BASE}/players`, {headers: apiHeaders()});
+    if (!res.ok) return [];
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.players || []);
+    return list.map(p => typeof p === 'string' ? p : p.name).sort((a,b)=> a.localeCompare(b));
+  }catch(e){
+    console.error('Player list fetch failed', e);
+    return [];
+  }
+}
+
+async function populatePlayerDropdown(){
+  const select = document.getElementById('search-input');
+  const names = await fetchPlayerList();
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+}
+
+async function init(){
+  document.getElementById('server-name').textContent = CONFIG.SERVER_NAME;
+  document.getElementById('server-ip').textContent = CONFIG.SERVER_IP;
+  document.getElementById('server-seed').textContent = CONFIG.SERVER_SEED;
+  document.getElementById('footer-ip').textContent = `Server IP: ${CONFIG.SERVER_IP}`;
+  if (DEMO_MODE) document.getElementById('demo-banner').style.display = 'block';
+
+  buildTabs();
+  loadLeaderboard('playtime');
+  populatePlayerDropdown();
+  renderActivityFeed();
+  populateComparePickers();
+  populateChartStat();
+  renderChart();
+  setupScrollReveal();
+}
+
+// ---- Recent Activity feed ----
+const FEED_PAGE_SIZE = 15;
+let feedShown = FEED_PAGE_SIZE;
+
+function renderActivityFeed(){
+  const container = document.getElementById('activity-feed');
+  const shown = ACTIVITY_FEED.slice(0, feedShown);
+  container.innerHTML = shown.map((e,i) => {
+    let text;
+    if (e.type === 'join') text = `<b>${e.name}</b> joined the server`;
+    else if (e.type === 'advancement') text = `<b>${e.name}</b> earned <b class="feed-adv">${advancementLabel(e.detail)}</b>`;
+    else { const d = formatDeathEvent({msg:e.detail}); text = `<b>${e.name}</b> ${d.text.charAt(0).toLowerCase()+d.text.slice(1)}`; }
+    return `<div class="feed-row" style="animation-delay:${Math.min(i,12)*0.03}s"><span class="feed-text">${text}</span><span class="feed-time">${fmtAgo(e.t)}</span></div>`;
+  }).join('');
+  document.getElementById('feed-more-btn').style.display = feedShown < ACTIVITY_FEED.length ? 'inline-block' : 'none';
+}
+function expandFeed(){
+  feedShown += FEED_PAGE_SIZE;
+  renderActivityFeed();
+}
+
+// ---- Player comparison ----
+const COMPARE_STATS = [
+  {key:'playtime', label:'Playtime (h)'},
+  {key:'kills', label:'PvP Kills'},
+  {key:'mobKills', label:'Mob Kills'},
+  {key:'deaths', label:'Deaths'},
+  {key:'mined', label:'Blocks Mined'},
+  {key:'placed', label:'Blocks Placed'},
+  {key:'crafted', label:'Items Crafted'},
+  {key:'distance', label:'Distance (km)'},
+  {key:'advancements', label:'Advancements'},
+  {key:'diamondMined', label:'Diamond Ore Mined'},
+  {key:'debrisMined', label:'Ancient Debris Mined'},
+  {key:'totems', label:'Totems Used'}
+];
+function findPlayerByName(name){
+  return Object.values(DEMO_PLAYERS).find(p => p.name === name);
+}
+function populateComparePickers(){
+  const names = Object.values(DEMO_PLAYERS).map(p=>p.name).sort((a,b)=>a.localeCompare(b));
+  ['compare-a','compare-b'].forEach(id => {
+    const sel = document.getElementById(id);
+    names.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      sel.appendChild(opt);
+    });
+  });
+}
+function renderComparison(){
+  const nameA = document.getElementById('compare-a').value;
+  const nameB = document.getElementById('compare-b').value;
+  const result = document.getElementById('compare-result');
+  if (!nameA || !nameB){ result.innerHTML = ''; return; }
+  if (nameA === nameB){
+    result.innerHTML = `<div class="compare-empty">Pick two different players to compare.</div>`;
+    return;
+  }
+  const a = findPlayerByName(nameA), b = findPlayerByName(nameB);
+  const rows = COMPARE_STATS.map((s,i) => {
+    const va = a[s.key] ?? 0, vb = b[s.key] ?? 0;
+    return `<div class="compare-row" style="animation-delay:${i*0.03}s">
+      <span class="compare-label">${s.label}</span>
+      <span class="compare-val${va>vb?' lead':''}">${fmtNumber(va)}</span>
+      <span class="compare-val${vb>va?' lead':''}">${fmtNumber(vb)}</span>
+    </div>`;
+  }).join('');
+  result.innerHTML = `
+    <div class="compare-table">
+      <div class="compare-head"><span></span><span class="ch-name">${a.name}</span><span class="ch-name">${b.name}</span></div>
+      ${rows}
+    </div>
+  `;
+}
+
+// ---- Stats chart ----
+let statsChart = null;
+function populateChartStat(){
+  document.getElementById('chart-stat').innerHTML =
+    COMPARE_STATS.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
+}
+function renderChart(){
+  const key = document.getElementById('chart-stat').value || COMPARE_STATS[0].key;
+  const players = [...Object.values(DEMO_PLAYERS)].sort((a,b)=>(b[key]??0)-(a[key]??0));
+  const canvas = document.getElementById('stats-chart');
+  if (typeof Chart === 'undefined'){
+    canvas.parentElement.innerHTML = '<div class="adv-empty">Chart library failed to load.</div>';
+    return;
+  }
+  const styles = getComputedStyle(document.documentElement);
+  if (statsChart) statsChart.destroy();
+  statsChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: players.map(p=>p.name),
+      datasets: [{ data: players.map(p=>p[key] ?? 0), backgroundColor: styles.getPropertyValue('--grass').trim(), borderRadius:6, maxBarThickness:42 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color: styles.getPropertyValue('--text').trim() }, grid:{ color: styles.getPropertyValue('--line').trim() } },
+        y:{ ticks:{ color: styles.getPropertyValue('--text').trim() }, grid:{ color: styles.getPropertyValue('--line').trim() }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// ---- Scroll-reveal for new sections ----
+function setupScrollReveal(){
+  const els = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window)){ els.forEach(el=>el.classList.add('in-view')); return; }
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting){ entry.target.classList.add('in-view'); obs.unobserve(entry.target); }
+    });
+  }, {threshold:0.12});
+  els.forEach(el => obs.observe(el));
+}
+
+function buildTabs(){
+  const tabs = document.getElementById('lb-tabs');
+  tabs.innerHTML = LEADERBOARD_TYPES.map((t,i)=>
+    `<button class="tab${i===0?' active':''}" data-key="${t.key}" onclick="switchTab('${t.key}')">${t.label}</button>`
+  ).join('');
+}
+
+async function switchTab(key){
+  document.querySelectorAll('.tab').forEach(el=>{
+    el.classList.toggle('active', el.dataset.key === key);
+  });
+  loadLeaderboard(key);
+}
+
+async function loadLeaderboard(type){
+  const list = document.getElementById('lb-list');
+  list.innerHTML = `<div class="lb-row"><span class="lb-name" style="color:var(--text-dim)">Loading…</span></div>`;
+  const entries = await fetchLeaderboard(type);
+  if (!entries.length){
+    list.innerHTML = `<div class="lb-row"><span class="lb-name" style="color:var(--text-dim)">No data yet.</span></div>`;
+    return;
+  }
+  const typeInfo = LEADERBOARD_TYPES.find(t=>t.key===type);
+  const unit = typeInfo?.unit || '';
+  const extraCols = LEADERBOARD_EXTRA_COLUMNS[type] || [];
+  const isMulti = extraCols.length > 0;
+  const cols = `22px 28px minmax(60px,1fr) 70px repeat(${extraCols.length},60px)`;
+  const rowClass = isMulti ? 'lb-row lb-multi' : 'lb-row';
+  const rowStyle = isMulti ? ` style="--lb-cols:${cols}"` : '';
+
+  const header = isMulti ? `
+    <div class="${rowClass} lb-header"${rowStyle}>
+      <span class="lb-rank"></span>
+      <span class="lb-name-spacer"></span>
+      <span class="lb-name">Player</span>
+      <span class="lb-val">${typeInfo.label}</span>
+      ${extraCols.map(c => `<span class="lb-extra">${c.label}</span>`).join('')}
+    </div>` : '';
+
+  list.innerHTML = header + entries.map((e,i)=>`
+    <div class="${rowClass}"${rowStyle}>
+      <span class="lb-rank">${i+1}</span>
+      ${avatarBadgeHTML(e.name)}
+      <span class="lb-name">${e.name}</span>
+      <span class="lb-val">${fmtNumber(e.value)}${unit}</span>
+      ${(e.extra||[]).map(x => `<span class="lb-extra">${fmtNumber(x.value)}</span>`).join('')}
+    </div>
+  `).join('');
+}
+
+async function lookupPlayer(){
+  const name = document.getElementById('search-input').value.trim();
+  if (!name) return;
+  const p = await fetchPlayer(name);
+  const section = document.getElementById('player-section');
+  if (!p){
+    section.style.display = 'block';
+    document.getElementById('p-name').textContent = name;
+    document.getElementById('p-sub').textContent = 'No stats found for this player.';
+    setAvatar(name);
+    document.getElementById('p-stats').innerHTML = '';
+    renderAdvancements(null);
+    renderLatestDeaths(0, null);
+    renderDistance(null);
+    section.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  setAvatar(p.name);
+  document.getElementById('p-name').textContent = p.name;
+  document.getElementById('p-sub').innerHTML = `${fmtHours(p.playtime)} played · ${p.advancements} advancements earned<br>${formatLastOnline(p.lastOnline)}`;
+  document.getElementById('p-stats').innerHTML = `
+    <div class="stat-cell"><div class="v">${fmtHours(p.playtime)}</div><div class="k">Playtime</div></div>
+    <div class="stat-cell"><div class="v">${fmtNumber(p.kills)}</div><div class="k">PvP kills</div></div>
+    <div class="stat-cell"><div class="v">${fmtNumber(p.mobKills)}</div><div class="k">Mob kills</div></div>
+    <div class="stat-cell"><div class="v">${fmtNumber(p.deaths)}</div><div class="k">Deaths</div></div>
+    <div class="stat-cell"><div class="v">${fmtNumber(p.mined)}</div><div class="k">Blocks mined</div></div>
+    <div class="stat-cell"><div class="v">${fmtNumber(p.crafted)}</div><div class="k">Items crafted</div></div>
+    <div class="stat-cell"><div class="v">${fmtDistance(p.distance)}</div><div class="k">Distance traveled</div></div>
+    <div class="stat-cell"><div class="v">${fmtNumber(p.advancements)}</div><div class="k">Advancements</div></div>
+  `;
+  section.style.display = 'block';
+  renderAdvancements(p.earned || null);
+  renderLatestDeaths(p.deaths, p.deathLog || null);
+  renderDistance(p.distances || null);
+  section.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function renderAdvancements(earned){
+  const body = document.getElementById('adv-body');
+  const label = document.getElementById('adv-toggle-label');
+  resetPanelClosed('adv-body', 'adv-chev');
+
+  if (!earned){
+    label.textContent = 'Advancements not available';
+    body.innerHTML = `<div class="adv-empty">This player's data doesn't include an advancement list.</div>`;
+    return;
+  }
+  if (!earned.length){
+    label.textContent = 'Show advancements (0)';
+    body.innerHTML = `<div class="adv-empty">No advancements earned yet.</div>`;
+    return;
+  }
+  label.textContent = `Show advancements (${earned.length})`;
+
+  const groups = {};
+  earned.forEach(id => {
+    const cat = advancementCategory(id);
+    (groups[cat] = groups[cat] || []).push(id);
+  });
+  const order = ['Story','Nether','The End','Adventure','Husbandry','Other'];
+  body.innerHTML = order.filter(c => groups[c]).map(cat => `
+    <div class="adv-cat">
+      <div class="adv-cat-title">${cat}</div>
+      <div class="adv-grid">
+        ${groups[cat].map(id => `<div class="adv-item" title="${advancementDesc(id).replace(/"/g,'&quot;')}"><span class="chk">${advancementIcon(id)}</span>${advancementLabel(id)}</div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---- Log-derived death + last-online display ----
+// Server logs are in UTC. Timestamps are stored as ISO strings ending in "Z"
+// and shown in each visitor's own timezone.
+const LOG_WINDOW = 'Sep 20 – 27, 2026';
+const KILLER_ICON = {
+  'Zombie':'🧟','Skeleton':'💀','Creeper':'💥','Spider':'🕷️','Enderman':'👁️','Witch':'🧙',
+  'Iron Golem':'🤖','Drowned':'🌊','Piglin':'🐷','Piglin Brute':'🪓','Zombified Piglin':'🔥',
+  'Hoglin':'🐗','Magma Cube':'🟠','Blaze':'🔥','Phantom':'🦇','Wither':'☠️','Ender Dragon':'🐉'
+};
+const CAUSE_FALLBACK_ICON = {
+  'blew up':'💥', 'drowned':'🌊', 'fell from a high place':'🪂', 'hit the ground too hard':'🪂',
+  'suffocated in a wall':'🧱', 'tried to swim in lava':'🔥', 'was doomed to fall by':'🪂'
+};
+function parseDeath(msg){
+  let m;
+  if ((m = msg.match(/^(was slain by|was shot by|was blown up by|was doomed to fall by) (.+)$/))) return {c:m[1], k:m[2]};
+  if ((m = msg.match(/^drowned while trying to escape (.+)$/))) return {c:'drowned', k:m[1]};
+  if ((m = msg.match(/^tried to swim in lava to escape (.+)$/))) return {c:'tried to swim in lava', k:m[1]};
+  return {c:msg, k:null};
+}
+function formatDeathEvent(e){
+  const {c, k} = parseDeath(e.msg);
+  let text;
+  if (c==='was slain by') text = `Slain by ${k}`;
+  else if (c==='was shot by') text = `Shot by ${k}`;
+  else if (c==='was blown up by') text = `Blown up by ${k}`;
+  else if (c==='was doomed to fall by') text = `Knocked off a ledge by ${k}`;
+  else if (c==='drowned' && k) text = `Drowned trying to escape ${k}`;
+  else if (c==='drowned') text = 'Drowned';
+  else if (c==='tried to swim in lava' && k) text = `Tried to swim in lava escaping ${k}`;
+  else if (c==='tried to swim in lava') text = 'Tried to swim in lava';
+  else if (c==='fell from a high place') text = 'Fell from a high place';
+  else if (c==='hit the ground too hard') text = 'Hit the ground too hard';
+  else if (c==='suffocated in a wall') text = 'Suffocated in a wall';
+  else if (c==='blew up') text = 'Blew up';
+  else text = c.charAt(0).toUpperCase() + c.slice(1);
+  const icon = (k && KILLER_ICON[k]) || CAUSE_FALLBACK_ICON[c] || '💢';
+  return {text, icon};
+}
+function fmtWhen(iso, withYear){
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const opts = {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'};
+  if (withYear) { opts.year = 'numeric'; opts.timeZoneName = 'short'; }
+  return d.toLocaleString(undefined, opts);
+}
+function fmtAgo(iso){
+  const mins = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 2) return 'just now';
+  if (mins < 60) return `${Math.floor(mins)} minutes ago`;
+  const hrs = mins / 60;
+  if (hrs < 24) { const h = Math.floor(hrs); return `${h} hour${h===1?'':'s'} ago`; }
+  const d = Math.floor(hrs / 24);
+  return `${d} day${d===1?'':'s'} ago`;
+}
+function formatLastOnline(lo){
+  if (!lo) return 'Last online unknown';
+  const label = lo.kind === 'left' ? 'Last online' : 'Last joined';
+  return `${label} ${fmtWhen(lo.t, true)} · ${fmtAgo(lo.t)}`;
+}
+
+// Shared animated open/close for the advancements/deaths/distance panels.
+// max-height can't transition from "auto", so we measure scrollHeight and
+// animate to/from an explicit pixel value instead.
+function togglePanel(bodyId, chevId){
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  const isOpen = body.classList.contains('open');
+  if (isOpen){
+    body.style.maxHeight = body.scrollHeight + 'px';
+    void body.offsetHeight; // force layout so the browser registers the start height
+    body.classList.remove('open');
+    chev.classList.remove('open');
+    requestAnimationFrame(() => { body.style.maxHeight = '0px'; });
+  } else {
+    body.classList.add('open');
+    chev.classList.add('open');
+    body.style.maxHeight = body.scrollHeight + 'px';
+  }
+}
+function resetPanelClosed(bodyId, chevId){
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  body.classList.remove('open');
+  body.style.maxHeight = '0px';
+  chev.classList.remove('open');
+}
+
+function toggleAdvancements(){ togglePanel('adv-body', 'adv-chev'); }
+
+// Latest deaths, newest first, from the timestamped server logs.
+function renderLatestDeaths(totalDeaths, log){
+  const body = document.getElementById('death-body');
+  const label = document.getElementById('death-toggle-label');
+  resetPanelClosed('death-body', 'death-chev');
+
+  if (!log){
+    label.textContent = 'Latest deaths not available';
+    body.innerHTML = `<div class="adv-empty">No death history for this player.</div>`;
+    return;
+  }
+  if (!log.length){
+    label.textContent = 'Latest deaths (none in the logs)';
+    body.innerHTML = `<div class="adv-empty">No deaths for this player appear in the server logs (${LOG_WINDOW}).${totalDeaths ? ` Their lifetime total is ${fmtNumber(totalDeaths)}, all from before the logs begin.` : ''}</div>`;
+    return;
+  }
+  label.textContent = `Show latest deaths (${log.length})`;
+  const sorted = [...log].sort((a,b) => b.t.localeCompare(a.t));
+  const rows = sorted.map(e => {
+    const {text, icon} = formatDeathEvent(e);
+    return `<div class="adv-item"><span class="chk">${icon}</span><span>${text}</span><span style="color:var(--text-dim); margin-left:auto; font-size:12.5px; white-space:nowrap;">${fmtWhen(e.t, false)}</span></div>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="adv-grid" style="grid-template-columns:1fr; margin-top:16px;">${rows}</div>
+    <div class="adv-empty" style="padding-top:12px;">Newest first, from the server logs (${LOG_WINDOW}). Older deaths aren't itemized${totalDeaths ? ` — lifetime total: ${fmtNumber(totalDeaths)}` : ''}.</div>
+  `;
+}
+
+function toggleDeathCauses(){ togglePanel('death-body', 'death-chev'); }
+
+function renderDistance(distances){
+  const body = document.getElementById('dist-body');
+  const label = document.getElementById('dist-toggle-label');
+  resetPanelClosed('dist-body', 'dist-chev');
+
+  if (!distances){
+    label.textContent = 'Distance breakdown not available';
+    body.innerHTML = `<div class="adv-empty">This player's data doesn't include a distance breakdown.</div>`;
+    return;
+  }
+  const rows = Object.entries(distances)
+    .filter(([,km]) => km > 0)
+    .sort((a,b) => b[1] - a[1]);
+  const total = Object.values(distances).reduce((a,b)=>a+b, 0);
+
+  if (!rows.length){
+    label.textContent = 'Show distance breakdown (0 km)';
+    body.innerHTML = `<div class="adv-empty">No movement recorded yet.</div>`;
+    return;
+  }
+  label.textContent = `Show distance breakdown (${fmtNumber(Math.round(total))} km total)`;
+  body.innerHTML = `
+    <div class="adv-grid" style="margin-top:16px;">
+      ${rows.map(([k,km]) => {
+        const info = MOVEMENT_INFO[k] || {name:k, icon:'❔'};
+        return `<div class="adv-item"><span class="chk">${info.icon}</span>${info.name} — ${fmtDistance(km)}</div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function toggleDistance(){ togglePanel('dist-body', 'dist-chev'); }
+
+
+function copySeed(btn){
+  navigator.clipboard?.writeText(String(CONFIG.SERVER_SEED)).catch(()=>{});
+  const original = btn.textContent;
+  btn.textContent = 'Copied';
+  setTimeout(()=> btn.textContent = original, 1200);
+}
+
+function closePlayer(){
+  document.getElementById('player-section').style.display = 'none';
+}
+
+function copyIP(){
+  navigator.clipboard?.writeText(CONFIG.SERVER_IP).catch(()=>{});
+  const btn = event.target;
+  const original = btn.textContent;
+  btn.textContent = 'Copied';
+  setTimeout(()=> btn.textContent = original, 1200);
+}
+
+init();
+</script>
+</body>
+</html>
